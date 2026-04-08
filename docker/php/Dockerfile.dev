@@ -1,0 +1,20 @@
+FROM php:8.4-fpm
+
+RUN apt-get update && apt-get install -y \
+    git curl zip unzip libpq-dev libonig-dev libxml2-dev libzip-dev supervisor \
+    && docker-php-ext-install pdo pdo_mysql mbstring zip \
+    && pecl install xdebug && docker-php-ext-enable xdebug \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /var/www/html
+
+COPY docker/php/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY docker/php/php-fpm.conf /usr/local/etc/php-fpm.d/zz-custom.conf
+COPY docker/php/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+EXPOSE 9000
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

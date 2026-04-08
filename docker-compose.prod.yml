@@ -1,0 +1,24 @@
+services:
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    environment:
+      APP_ENV: prod
+    restart: unless-stopped
+    volumes: []
+
+  nginx:
+    restart: unless-stopped
+
+  mysql:
+    restart: unless-stopped
+
+  cron:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile.cron
+    environment:
+      APP_ENV: prod
+    restart: unless-stopped
+    volumes: []

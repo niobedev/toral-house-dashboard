@@ -1,0 +1,63 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ stats.display_name }} — House Visit Charts{% endblock %}
+
+{% block body %}
+<div class="space-y-8">
+
+    {# Back link #}
+    <a href="{{ path('app_dashboard') }}" class="text-sm text-indigo-500 hover:underline">&larr; Back to Dashboard</a>
+
+    {# Profile header #}
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <h1 class="text-2xl font-bold">{{ stats.display_name }}</h1>
+        <p class="text-sm text-gray-500 mt-1">{{ stats.username }} &bull; Key: {{ avatar_key }}</p>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+            <div class="text-center">
+                <div class="text-3xl font-bold text-indigo-500">{{ stats.visit_count }}</div>
+                <div class="text-xs text-gray-500 mt-1">Total Visits</div>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl font-bold text-indigo-500">{{ (stats.total_minutes / 60)|number_format(1) }}h</div>
+                <div class="text-xs text-gray-500 mt-1">Total Time</div>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl font-bold text-indigo-500">{{ stats.avg_minutes|number_format(0) }}m</div>
+                <div class="text-xs text-gray-500 mt-1">Avg Visit</div>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl font-bold text-indigo-500">{{ stats.last_visit|date('M d') }}</div>
+                <div class="text-xs text-gray-500 mt-1">Last Visit</div>
+            </div>
+        </div>
+    </div>
+
+    {# Charts row #}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+            <h2 class="text-base font-semibold mb-4">Favorite Hours</h2>
+            <div id="chart-avatar-hourly" style="min-height:280px;"></div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+            <h2 class="text-base font-semibold mb-4">Recent Visit History</h2>
+            <div id="chart-avatar-history" style="min-height:280px;"></div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    import { renderAvatarHourly, renderAvatarHistory } from '/assets/charts/avatar.js';
+
+    const key = {{ avatar_key|json_encode|raw }};
+
+    fetch(`/api/avatar/${key}`)
+        .then(r => r.json())
+        .then(data => {
+            renderAvatarHourly('chart-avatar-hourly', data.hourly);
+            renderAvatarHistory('chart-avatar-history', data.history);
+        });
+</script>
+{% endblock %}
