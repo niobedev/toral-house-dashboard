@@ -143,7 +143,17 @@ yourdomain.com {
 }
 ```
 
-### 4 — Deploy
+### 4 — Populate database timezones (one-time)
+
+Reminder countdowns and the sheet import timezone conversion rely on `CONVERT_TZ()`, which requires the MariaDB/MySQL timezone tables to be populated. Run this once on your database container (replace `mariadb_main` and the root password as needed):
+
+```bash
+docker exec mariadb_main sh -c "mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -uroot -p<your_root_password> mysql"
+```
+
+> The command prints harmless warnings about metadata files — the timezone data loads correctly regardless.
+
+### 5 — Deploy
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
@@ -244,6 +254,8 @@ A `Makefile` is included for common tasks. Run `make` to see all targets.
 | `make shell` | Open a shell in the php container |
 | `make sync` | Run an incremental sync from Google Sheets |
 | `make sync-full` | Wipe all events and re-import from scratch |
+| `make sync-profiles` | Refresh SL bio + picture for all avatars (1.5 s delay between requests) |
+| `make sync-profiles delay=500` | Same, but faster (500 ms delay) |
 | `make migrate` | Run pending database migrations |
 | `make user name=admin pass=secret` | Create a login user |
 | `make build` | Rebuild the dev image |

@@ -59,11 +59,12 @@ class DashboardController extends AbstractController
         ));
 
         return $this->render('dashboard/avatar.html.twig', [
-            'stats'      => $stats,
-            'avatar_key' => $key,
-            'sl_profile' => $this->slProfile->fetchProfile($key),
-            'notes'      => $notes,
-            'reminders'  => $reminders,
+            'stats'            => $stats,
+            'avatar_key'       => $key,
+            'sl_profile'       => $this->slProfile->fetchProfile($key),
+            'profile_is_stale' => $this->slProfile->isStale($key),
+            'notes'            => $notes,
+            'reminders'        => $reminders,
         ]);
     }
 

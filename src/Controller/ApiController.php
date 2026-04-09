@@ -6,6 +6,7 @@ use App\Repository\AvatarReminderRepository;
 use App\Repository\EventRepository;
 use App\Repository\SyncStateRepository;
 use App\Service\GoogleSheetsService;
+use App\Service\SecondLifeProfileService;
 use App\Command\SyncSheetCommand;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -23,6 +24,7 @@ class ApiController extends AbstractController
         private readonly SyncStateRepository $syncStateRepository,
         private readonly SyncSheetCommand $syncSheetCommand,
         private readonly AvatarReminderRepository $reminderRepository,
+        private readonly SecondLifeProfileService $profileService,
     ) {}
 
     #[Route('/live-visitors', name: 'live_visitors', methods: ['GET'])]
@@ -93,6 +95,25 @@ class ApiController extends AbstractController
     public function newVsReturning(): JsonResponse
     {
         return $this->json($this->eventRepository->getNewVsReturning());
+    }
+
+    /**
+     * Background profile refresh endpoint — fetches fresh data from SL and returns it as JSON.
+     * Called by the avatar page JS when the cached profile is stale (stale-while-revalidate).
+     */
+    #[Route('/avatar/{key}/profile', name: 'avatar_profile', methods: ['GET'], requirements: ['key' => '[0-9a-f\-]+'])]
+    public function avatarProfile(string $key): JsonResponse
+    {
+        $profile = $this->profileService->fetchProfile($key, forceRefresh: true);
+        if ($profile === null) {
+            return $this->json(['error' => 'Profile not available'], Response::HTTP_NOT_FOUND);
+        }
+
+        return $this->json([
+            'bio_html'  => $profile['bioHtml'],
+            'image_url' => $profile['imageUrl'],
+            'synced_at' => $profile['syncedAt']->format('Y-m-d\TH:i:s\Z'),
+        ]);
     }
 
     #[Route('/avatar/{key}', name: 'avatar', methods: ['GET'], requirements: ['key' => '[0-9a-f\-]+'])]

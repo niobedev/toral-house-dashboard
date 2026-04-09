@@ -94,20 +94,27 @@
     <a href="{{ path('app_dashboard') }}" class="text-sm text-indigo-500 hover:underline">&larr; Back to Dashboard</a>
 
     {# Profile header #}
-    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6"
+         id="avatar-profile-card"
+         data-stale="{{ profile_is_stale ? '1' : '0' }}"
+         data-synced-at="{{ sl_profile ? sl_profile.syncedAt|date('U') : '0' }}">
         <div class="flex items-start gap-5">
             {% if sl_profile and sl_profile.imageUrl %}
-            <img src="{{ path('app_avatar_picture', {key: avatar_key}) }}" alt="{{ stats.display_name }}" style="width:256px;height:192px;" class="rounded-xl flex-shrink-0 border border-gray-200 dark:border-gray-600">
+            <img id="avatar-profile-image"
+                 src="{{ path('app_avatar_picture', {key: avatar_key}) }}"
+                 alt="{{ stats.display_name }}"
+                 style="width:256px;height:192px;transition:opacity 0.4s;"
+                 class="rounded-xl flex-shrink-0 border border-gray-200 dark:border-gray-600">
             {% endif %}
             <div class="flex-1 min-w-0">
                 <h1 class="text-2xl font-bold">{{ stats.display_name }}</h1>
                 <p class="text-sm text-gray-500 mt-1">{{ stats.username }} &bull; Key: {{ avatar_key }}</p>
                 {% if sl_profile and sl_profile.syncedAt %}
-                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Profile synced: <time datetime="{{ sl_profile.syncedAt|date('Y-m-d\\TH:i:s\\Z') }}" data-local>{{ sl_profile.syncedAt|date('Y-m-d H:i') }} UTC</time></p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Profile synced: <time id="avatar-profile-synced-time" datetime="{{ sl_profile.syncedAt|date('Y-m-d\\TH:i:s\\Z') }}" data-local>{{ sl_profile.syncedAt|date('Y-m-d H:i') }} UTC</time></p>
                 {% endif %}
-                {% if sl_profile and sl_profile.bioHtml %}
-                <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">{{ sl_profile.bioHtml|raw }}</p>
-                {% endif %}
+                <div id="avatar-profile-bio" class="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                    {% if sl_profile and sl_profile.bioHtml %}{{ sl_profile.bioHtml|raw }}{% endif %}
+                </div>
             </div>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
@@ -389,6 +396,7 @@
 {% block scripts %}
 <script type="module">
     import { renderAvatarHourly, renderAvatarHistory } from '/assets/charts/avatar.js';
+    import { localiseTimeTags } from '/assets/local-time.js';
 
     const key = {{ avatar_key|json_encode|raw }};
 
@@ -398,6 +406,55 @@
             renderAvatarHourly('chart-avatar-hourly', data.hourly);
             renderAvatarHistory('chart-avatar-history', data.history);
         });
+
+    // ── Stale-while-revalidate profile refresh ────────────────────────────────
+    const card = document.getElementById('avatar-profile-card');
+    if (card && card.dataset.stale === '1') {
+        fetch(`/api/avatar/${key}/profile`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data) return;
+
+                const newTs = Math.floor(new Date(data.synced_at).getTime() / 1000);
+                const currentTs = parseInt(card.dataset.syncedAt || '0', 10);
+                if (newTs <= currentTs) return; // nothing changed on the server
+
+                // ── Update image with a crossfade ─────────────────────────────
+                const img = document.getElementById('avatar-profile-image');
+                if (img && data.image_url) {
+                    const tmp = new Image();
+                    tmp.onload = () => {
+                        img.style.opacity = '0';
+                        setTimeout(() => {
+                            img.src = tmp.src;
+                            img.style.opacity = '1';
+                        }, 400);
+                    };
+                    tmp.src = `/avatar/${key}/picture?v=${newTs}`;
+                }
+
+                // ── Update bio ────────────────────────────────────────────────
+                const bio = document.getElementById('avatar-profile-bio');
+                if (bio) {
+                    bio.innerHTML = data.bio_html || '';
+                    localiseTimeTags(bio);
+                }
+
+                // ── Update "Profile synced:" timestamp ────────────────────────
+                const timeEl = document.getElementById('avatar-profile-synced-time');
+                if (timeEl) {
+                    timeEl.setAttribute('datetime', data.synced_at);
+                    const d = new Date(data.synced_at);
+                    timeEl.textContent = d.toLocaleString(undefined, {
+                        year: 'numeric', month: 'short', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                    });
+                }
+
+                card.dataset.syncedAt = String(newTs);
+            })
+            .catch(() => {}); // silently ignore — stale data is fine
+    }
 </script>
 
 <script>

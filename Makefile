@@ -42,13 +42,16 @@ shell: ## Open a shell inside the php container
 # Application
 # ─────────────────────────────────────────────────────────
 
-.PHONY: sync sync-full migrate user
+.PHONY: sync sync-full sync-profiles migrate user
 
 sync: ## Run an incremental Google Sheets sync
 	$(PHP) app:sync-sheet
 
 sync-full: ## Full re-sync — wipes all events and re-imports from scratch
 	$(PHP) app:sync-sheet --full
+
+sync-profiles: ## Refresh SL profiles for all avatars (use delay=500 to go faster)
+	$(PHP) app:sync-profiles --delay=$(or $(delay),200)
 
 migrate: ## Run pending database migrations
 	$(PHP) doctrine:migrations:migrate --no-interaction

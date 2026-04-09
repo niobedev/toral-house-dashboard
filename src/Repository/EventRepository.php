@@ -458,4 +458,16 @@ class EventRepository extends ServiceEntityRepository
             ->getConnection()
             ->fetchAllAssociative($sql);
     }
+
+    /**
+     * All distinct avatar keys ever seen in the event log, ordered alphabetically.
+     *
+     * @return string[]
+     */
+    public function findDistinctAvatarKeys(): array
+    {
+        return $this->getEntityManager()
+            ->getConnection()
+            ->fetchFirstColumn('SELECT DISTINCT avatar_key FROM event ORDER BY avatar_key');
+    }
 }

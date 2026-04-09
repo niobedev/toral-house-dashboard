@@ -14,6 +14,16 @@ class SecondLifeProfileService
     /** UUIDs currently being fetched — prevents infinite recursion on mutual SL links. */
     private array $fetching = [];
 
+    /**
+     * True when no profile is stored, or the stored one is older than REFRESH_AFTER.
+     * Use this to decide whether to trigger a background refresh from the UI.
+     */
+    public function isStale(string $avatarKey): bool
+    {
+        $stored = $this->profileRepository->find(strtolower($avatarKey));
+        return !$stored || $stored->getSyncedAt()->getTimestamp() < time() - self::REFRESH_AFTER;
+    }
+
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly AvatarProfileRepository $profileRepository,
@@ -25,13 +35,14 @@ class SecondLifeProfileService
      * Falls back to stale DB data if SL is unreachable.
      * Returns null if no data is available at all.
      */
-    public function fetchProfile(string $avatarKey): ?array
+    public function fetchProfile(string $avatarKey, bool $forceRefresh = false): ?array
     {
         $avatarKey = strtolower($avatarKey);
         $stored = $this->profileRepository->find($avatarKey);
 
-        // Return fresh DB data immediately — no HTTP needed
-        if ($stored && !$this->isStale($stored)) {
+        // If we have any stored data and are not forcing a refresh, return it immediately —
+        // stale data is served as-is; the UI will trigger a background refresh via the API.
+        if (!$forceRefresh && $stored) {
             return $this->toArray($stored);
         }
 
@@ -70,11 +81,6 @@ class SecondLifeProfileService
         $this->em->flush();
 
         return $this->toArray($profile);
-    }
-
-    private function isStale(AvatarProfile $profile): bool
-    {
-        return $profile->getSyncedAt()->getTimestamp() < time() - self::REFRESH_AFTER;
     }
 
     private function toArray(AvatarProfile $profile): array
