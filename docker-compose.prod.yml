@@ -1,8 +1,10 @@
 services:
-  php:
+  app:
     build:
       context: .
       dockerfile: docker/php/Dockerfile.prod
+    image: ghcr.io/niobedev/toral-house-dashboard:latest
+    container_name: toral-house-app
     restart: unless-stopped
     environment:
       APP_ENV: prod
@@ -16,23 +18,8 @@ services:
       mysql:
         condition: service_healthy
     networks:
-      - app
-
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - php
-    networks:
-      - app
+      - internal  # talks to mysql
+      - proxy     # reachable by external Caddy
 
   mysql:
     image: mysql:8.0
@@ -50,12 +37,12 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - app
+      - internal  # not exposed to proxy network
 
 volumes:
   mysql_data:
-  caddy_data:
-  caddy_config:
 
 networks:
-  app:
+  internal:          # private network between app and mysql
+  proxy:             # shared with external Caddy
+    external: true   # must be created once on the server: docker network create proxy

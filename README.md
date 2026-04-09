@@ -37,8 +37,8 @@
 - **Backend** — Symfony 8 / PHP 8.4-fpm, Doctrine ORM, MySQL 8 window functions (`LEAD`, `ROW_NUMBER`)
 - **Frontend** — Apache ECharts (ES modules), Tailwind CSS (CDN, dark mode)
 - **Data source** — Google Sheets API v4 via service account
-- **Web server** — Caddy 2 (`php_fastcgi`)
-- **Scheduler** — supervisor loop inside the PHP container (no separate cron)
+- **Web server** — Caddy 2 bundled inside the app container (`php_fastcgi localhost:9000`)
+- **Scheduler** — supervisor-managed 60 s loop inside the app container (no separate cron container)
 
 ---
 
@@ -97,24 +97,47 @@ docker compose exec php php bin/console app:sync-sheet
 
 ## 🏭 Production Deployment
 
-The production image is published automatically to **GitHub Container Registry** on every push to `main`:
+The production image is a **single self-contained container** — php-fpm, Caddy (static files + FastCGI), and the sync scheduler all run together under supervisord. No volume sharing with external services required.
+
+The image is published automatically to **GitHub Container Registry** on every push to `main`:
 
 ```
 ghcr.io/niobedev/toral-house-dashboard:latest
 ```
 
-### 1 — Create `.env.prod` on the server
+### 1 — One-time server setup
+
+Create the shared Docker network that your Caddy instance and app containers use to communicate:
+
+```bash
+docker network create proxy
+```
+
+### 2 — Create `.env.prod` on the server
 
 ```dotenv
 APP_SECRET=<openssl rand -hex 32>
 
 DATABASE_URL=mysql://app:strongpassword@mysql:3306/house_visits?serverVersion=8.0&charset=utf8mb4
+MYSQL_ROOT_PASSWORD=<strong password>
+MYSQL_PASSWORD=strongpassword
 
 GOOGLE_SHEET_ID=your_spreadsheet_id_here
 GOOGLE_SHEET_RANGE=AD!A2:E
+GOOGLE_SA_KEY_PATH=/absolute/path/to/google-sa-key.json
 ```
 
-### 2 — Deploy
+### 3 — Configure your Caddy instance
+
+Add one block to your existing Caddyfile — this never needs to change again, even across app updates:
+
+```caddyfile
+yourdomain.com {
+    reverse_proxy toral-house-app:80
+}
+```
+
+### 4 — Deploy
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
@@ -123,19 +146,38 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 On startup the container automatically:
 1. Warms the Symfony production cache
 2. Runs any pending database migrations
-3. Starts **php-fpm** + the **60 s sync loop** under supervisord
+3. Starts **Caddy** (`:80`, serves static assets + proxies PHP to php-fpm)
+4. Starts **php-fpm** (`:9000`, internal only)
+5. Starts the **60 s Google Sheets sync loop**
 
-### Caddy (if already running on the host)
+### Updating to a new version
 
-Skip the `caddy` service in the compose file and add a site block to your existing Caddyfile:
+Pull the new image and recreate the container — external Caddy needs no restart since the container name stays the same:
 
-```caddyfile
-yourdomain.com {
-    root * /var/www/html/public
-    encode gzip
-    php_fastcgi <container-ip>:9000
-    file_server
-}
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+```
+
+### Architecture
+
+```
+External Caddy (proxy network)
+      │  reverse_proxy toral-house-app:80
+      ▼
+ ┌─────────────────────────────────┐
+ │       toral-house-app           │
+ │  ┌─────────┐    ┌────────────┐  │
+ │  │  Caddy  │───▶│  php-fpm   │  │
+ │  │  :80    │    │   :9000    │  │
+ │  └─────────┘    └────────────┘  │
+ │  ┌───────────────────────────┐  │
+ │  │  sync loop (every 60 s)   │  │
+ │  └───────────────────────────┘  │
+ └─────────────────────────────────┘
+      │ (internal network only)
+      ▼
+    MySQL
 ```
 
 ---
@@ -144,12 +186,12 @@ yourdomain.com {
 
 ```
 ├── docker/
-│   ├── caddy/Caddyfile          # Web server config
+│   ├── caddy/Caddyfile          # Caddy config (bundled into prod image)
 │   └── php/
 │       ├── Dockerfile.dev       # Dev image (xdebug, volume-mounted source)
-│       ├── Dockerfile.prod      # Production image (fully self-contained)
+│       ├── Dockerfile.prod      # Production image (php-fpm + Caddy + scheduler)
 │       ├── entrypoint.prod.sh   # cache:warmup + migrations on startup
-│       └── supervisord.conf     # php-fpm + 60 s sync loop
+│       └── supervisord.conf     # manages php-fpm, Caddy, and sync loop
 ├── src/
 │   ├── Command/SyncSheetCommand.php
 │   ├── Service/
@@ -159,8 +201,9 @@ yourdomain.com {
 ├── public/assets/
 │   ├── app.js                   # Poll loop, sync-aware auto-refresh
 │   └── charts/                  # One ES module per chart
+├── .github/workflows/docker.yml # CI: builds & pushes image to ghcr.io on push to main
 ├── docker-compose.yml           # Dev stack
-└── docker-compose.prod.yml      # Production stack
+└── docker-compose.prod.yml      # Production stack (joins external "proxy" network)
 ```
 
 ---
@@ -168,17 +211,19 @@ yourdomain.com {
 ## 🔧 Useful Commands
 
 ```bash
-# Run a manual sync
+# Run a manual sync (dev)
 docker compose exec php php bin/console app:sync-sheet
 
 # Full re-sync from scratch (wipes existing events)
 docker compose exec php php bin/console app:sync-sheet --full
 
-# Follow live logs — sync output visible here
-docker compose logs php -f
+# Follow live logs — sync output, Caddy access log, php-fpm all here
+docker compose exec php php bin/console app:sync-sheet   # dev
+docker compose logs toral-house-app -f                   # prod
 
 # Open a shell inside the container
-docker compose exec php sh
+docker compose exec php sh          # dev
+docker compose exec app sh          # prod
 ```
 
 ---
