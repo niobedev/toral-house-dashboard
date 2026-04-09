@@ -2,10 +2,13 @@
 
 namespace App\Controller;
 
+use App\Repository\AvatarNoteRepository;
 use App\Repository\AvatarProfileRepository;
+use App\Repository\AvatarReminderRepository;
 use App\Repository\EventRepository;
 use App\Repository\SyncStateRepository;
 use App\Service\SecondLifeProfileService;
+use League\CommonMark\CommonMarkConverter;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -19,6 +22,9 @@ class DashboardController extends AbstractController
         private readonly SyncStateRepository $syncStateRepository,
         private readonly SecondLifeProfileService $slProfile,
         private readonly AvatarProfileRepository $profileRepository,
+        private readonly AvatarNoteRepository $noteRepository,
+        private readonly AvatarReminderRepository $reminderRepository,
+        private readonly CommonMarkConverter $markdown,
     ) {}
 
     #[Route('/', name: 'app_dashboard')]
@@ -39,10 +45,25 @@ class DashboardController extends AbstractController
             throw $this->createNotFoundException('Avatar not found.');
         }
 
+        $notes = array_map(fn($n) => [
+            'entity' => $n,
+            'html'   => $this->markdown->convert($n->getContent())->getContent(),
+        ], $this->noteRepository->findForAvatar($key));
+
+        $reminders = array_map(fn($r) => [
+            'entity' => $r,
+            'html'   => $this->markdown->convert($r->getContent())->getContent(),
+        ], array_merge(
+            $this->reminderRepository->findActiveForAvatar($key),
+            $this->reminderRepository->findResolvedForAvatar($key),
+        ));
+
         return $this->render('dashboard/avatar.html.twig', [
             'stats'      => $stats,
             'avatar_key' => $key,
             'sl_profile' => $this->slProfile->fetchProfile($key),
+            'notes'      => $notes,
+            'reminders'  => $reminders,
         ]);
     }
 

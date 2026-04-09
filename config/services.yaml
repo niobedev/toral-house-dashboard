@@ -19,6 +19,12 @@ services:
     App\:
         resource: '../src/'
 
+    League\CommonMark\CommonMarkConverter:
+        arguments:
+            $config:
+                html_input: 'strip'
+                allow_unsafe_links: false
+
     App\Service\GoogleSheetsService:
         arguments:
             $serviceAccountPath: '%env(GOOGLE_SERVICE_ACCOUNT_PATH)%'

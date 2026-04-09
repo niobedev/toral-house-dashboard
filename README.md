@@ -29,13 +29,19 @@
 | 🟢 **Live Now panel** | Shows currently online visitors with per-second elapsed timers |
 | 🔄 **Auto-sync** | Incremental Google Sheets sync every 60 seconds, UI refreshes automatically on new data |
 | 🔍 **Visitor search** | Filter visitors by name across any time period |
+| 👤 **Avatar profiles** | Per-avatar page with SL profile data (name, bio, picture) cached from the Second Life API |
+| 📝 **Avatar notes** | Freeform markdown notes per avatar; author can edit or delete via modal |
+| ⏰ **Avatar reminders** | Dated reminders with live countdown; any user can resolve; overdue reminders highlighted in red |
+| 🔔 **Reminder navbar badge** | Clock icon in the nav shows active reminder count; turns red when any reminder is overdue |
+| 🌍 **UTC-aware times** | All timestamps stored as UTC; displayed in the viewer's local timezone via `<time data-local>` |
 | 🔐 **Auth** | Session-based login to keep the dashboard private |
 | 🐳 **Docker-first** | Single-image production deploy; dev environment with hot reload |
 
 ## 🛠 Tech Stack
 
 - **Backend** — Symfony 8 / PHP 8.4-fpm, Doctrine ORM, MySQL 8 window functions (`LEAD`, `ROW_NUMBER`)
-- **Frontend** — Apache ECharts (ES modules), Tailwind CSS (CDN, dark mode)
+- **Frontend** — Apache ECharts (ES modules), Tailwind CSS (CDN, dark mode), EasyMDE (markdown editor)
+- **Markdown** — `league/commonmark` (server-side rendering, XSS-safe)
 - **Data source** — Google Sheets API v4 via service account
 - **Web server** — Caddy 2 bundled inside the app container (`php_fastcgi localhost:9000`)
 - **Scheduler** — supervisor-managed 60 s loop inside the app container (no separate cron container)
@@ -65,6 +71,9 @@ GOOGLE_SHEET_ID=your_spreadsheet_id_here
 APP_SECRET=any_random_32_char_string
 MYSQL_ROOT_PASSWORD=rootsecret
 MYSQL_PASSWORD=secret
+
+# Timezone of the timestamps in your Google Sheet (used to convert them to UTC on import)
+SHEET_TIMEZONE=Europe/Kyiv
 ```
 
 Place your service account key at:
@@ -191,12 +200,29 @@ External Caddy (proxy network)
 │       └── supervisord.conf     # manages php-fpm, Caddy, and sync loop
 ├── src/
 │   ├── Command/SyncSheetCommand.php
+│   ├── Controller/
+│   │   ├── ApiController.php       # JSON endpoints for charts + reminders
+│   │   ├── DashboardController.php # Main dashboard + avatar pages
+│   │   ├── NoteController.php      # Create/edit/delete avatar notes
+│   │   └── ReminderController.php  # Create/edit/delete/resolve avatar reminders
+│   ├── Entity/
+│   │   ├── AvatarNote.php
+│   │   ├── AvatarProfile.php       # Cached SL profile (name, bio, picture)
+│   │   └── AvatarReminder.php
+│   ├── EventListener/
+│   │   └── ReminderNavbarSubscriber.php  # Injects reminder counts as Twig globals
 │   ├── Service/
 │   │   ├── GoogleSheetsService.php
-│   │   └── SheetSyncService.php
-│   └── Repository/EventRepository.php   # All analytics queries (window functions)
+│   │   ├── SecondLifeProfileService.php  # Fetches & caches SL avatar profiles
+│   │   └── SheetSyncService.php          # Converts sheet timestamps to UTC on import
+│   └── Repository/
+│       ├── AvatarNoteRepository.php
+│       ├── AvatarProfileRepository.php
+│       ├── AvatarReminderRepository.php
+│       └── EventRepository.php           # All analytics queries (window functions)
 ├── public/assets/
 │   ├── app.js                   # Poll loop, sync-aware auto-refresh
+│   ├── local-time.js            # Rewrites <time data-local> to browser local timezone
 │   └── charts/                  # One ES module per chart
 ├── .github/workflows/docker.yml # CI: builds & pushes image to ghcr.io on push to main
 ├── docker-compose.yml           # Dev stack

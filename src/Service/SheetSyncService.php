@@ -18,6 +18,8 @@ class SheetSyncService
         private readonly LoggerInterface $logger,
         #[Autowire(env: 'GOOGLE_SHEET_RANGE')]
         private readonly string $sheetRange,
+        #[Autowire(env: 'SHEET_TIMEZONE')]
+        private readonly string $sheetTimezone,
     ) {
     }
 
@@ -74,7 +76,8 @@ class SheetSyncService
                 }
 
                 try {
-                    $eventTs = new \DateTimeImmutable($dateStr);
+                    $eventTs = (new \DateTimeImmutable($dateStr, new \DateTimeZone($this->sheetTimezone)))
+                        ->setTimezone(new \DateTimeZone('UTC'));
                 } catch (\Exception) {
                     $skipped++;
                     continue;

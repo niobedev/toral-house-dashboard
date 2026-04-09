@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Repository\AvatarReminderRepository;
 use App\Repository\EventRepository;
 use App\Repository\SyncStateRepository;
 use App\Service\GoogleSheetsService;
@@ -21,6 +22,7 @@ class ApiController extends AbstractController
         private readonly EventRepository $eventRepository,
         private readonly SyncStateRepository $syncStateRepository,
         private readonly SyncSheetCommand $syncSheetCommand,
+        private readonly AvatarReminderRepository $reminderRepository,
     ) {}
 
     #[Route('/live-visitors', name: 'live_visitors', methods: ['GET'])]
@@ -117,6 +119,22 @@ class ApiController extends AbstractController
             'synced_at' => $state?->getSyncedAt()?->format('c'),
             'rows_synced' => $state?->getRowsSynced() ?? 0,
         ]);
+    }
+
+    #[Route('/reminders/active', name: 'reminders_active', methods: ['GET'])]
+    public function remindersActive(): JsonResponse
+    {
+        $reminders = $this->reminderRepository->findAllActive();
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+
+        return $this->json(array_map(fn($r) => [
+            'id'          => $r->getId(),
+            'avatar_key'  => $r->getAvatarKey(),
+            'content'     => $r->getContent(),
+            'reminder_at' => $r->getReminderAt()->format('c'),
+            'is_overdue'  => $r->getReminderAt() < $now,
+            'author'      => $r->getAuthor()->getUsername(),
+        ], $reminders));
     }
 
     #[Route('/sync', name: 'sync', methods: ['POST'])]
