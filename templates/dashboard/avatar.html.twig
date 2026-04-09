@@ -10,8 +10,21 @@
 
     {# Profile header #}
     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-        <h1 class="text-2xl font-bold">{{ stats.display_name }}</h1>
-        <p class="text-sm text-gray-500 mt-1">{{ stats.username }} &bull; Key: {{ avatar_key }}</p>
+        <div class="flex items-start gap-5">
+            {% if sl_profile and sl_profile.imageUrl %}
+            <img src="{{ path('app_avatar_picture', {key: avatar_key}) }}" alt="{{ stats.display_name }}" style="width:256px;height:192px;" class="rounded-xl flex-shrink-0 border border-gray-200 dark:border-gray-600">
+            {% endif %}
+            <div class="flex-1 min-w-0">
+                <h1 class="text-2xl font-bold">{{ stats.display_name }}</h1>
+                <p class="text-sm text-gray-500 mt-1">{{ stats.username }} &bull; Key: {{ avatar_key }}</p>
+                {% if sl_profile and sl_profile.syncedAt %}
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Profile synced: {{ sl_profile.syncedAt|date('Y-m-d H:i') }}</p>
+                {% endif %}
+                {% if sl_profile and sl_profile.bioHtml %}
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">{{ sl_profile.bioHtml|raw }}</p>
+                {% endif %}
+            </div>
+        </div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
             <div class="text-center">
                 <div class="text-3xl font-bold text-indigo-500">{{ stats.visit_count }}</div>

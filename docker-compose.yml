@@ -2,7 +2,10 @@ services:
   php:
     build:
       context: .
-      dockerfile: docker/php/Dockerfile.dev
+      dockerfile: docker/php/Dockerfile
+      target: dev
+    ports:
+      - "8080:80"
     volumes:
       - .:/var/www/html
       - /var/www/html/vendor
@@ -13,18 +16,6 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-    networks:
-      - app
-
-  caddy:
-    image: caddy:2-alpine
-    ports:
-      - "8080:80"
-    volumes:
-      - .:/var/www/html:ro
-      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-    depends_on:
-      - php
     networks:
       - app
 
@@ -46,7 +37,6 @@ services:
       retries: 5
     networks:
       - app
-
 
 volumes:
   mysql_data:

@@ -93,7 +93,7 @@ debug-container: ## Search the DI container: make debug-container q=sync
 .PHONY: prod-build prod-push
 
 prod-build: ## Build the production Docker image locally
-	docker build -f docker/php/Dockerfile.prod -t ghcr.io/niobedev/toral-house-dashboard:latest .
+	docker build -f docker/php/Dockerfile --target prod -t ghcr.io/niobedev/toral-house-dashboard:latest .
 
 prod-push: ## Push the production image to GHCR (requires docker login ghcr.io)
 	docker push ghcr.io/niobedev/toral-house-dashboard:latest

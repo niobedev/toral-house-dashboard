@@ -2,10 +2,14 @@
 
 namespace App\Controller;
 
+use App\Repository\AvatarProfileRepository;
 use App\Repository\EventRepository;
 use App\Repository\SyncStateRepository;
+use App\Service\SecondLifeProfileService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
 class DashboardController extends AbstractController
@@ -13,6 +17,8 @@ class DashboardController extends AbstractController
     public function __construct(
         private readonly EventRepository $eventRepository,
         private readonly SyncStateRepository $syncStateRepository,
+        private readonly SecondLifeProfileService $slProfile,
+        private readonly AvatarProfileRepository $profileRepository,
     ) {}
 
     #[Route('/', name: 'app_dashboard')]
@@ -34,8 +40,42 @@ class DashboardController extends AbstractController
         }
 
         return $this->render('dashboard/avatar.html.twig', [
-            'stats' => $stats,
+            'stats'      => $stats,
             'avatar_key' => $key,
+            'sl_profile' => $this->slProfile->fetchProfile($key),
         ]);
+    }
+
+    #[Route('/avatar/{key}/picture', name: 'app_avatar_picture', requirements: ['key' => '[0-9a-f\-]+'])]
+    public function avatarPicture(string $key, Request $request): Response
+    {
+        $key      = strtolower($key);
+        $imageData = $this->profileRepository->findImageData($key);
+
+        if ($imageData === null) {
+            // No cached image — redirect to SL directly as a one-time fallback
+            $profile = $this->profileRepository->find($key);
+            $imageUrl = $profile?->getImageUrl();
+            if ($imageUrl) {
+                return $this->redirect($imageUrl);
+            }
+            throw $this->createNotFoundException('No picture available.');
+        }
+        $etag      = md5($imageData);
+
+        // Return 304 if browser already has this version
+        if ($request->headers->get('If-None-Match') === $etag) {
+            return new Response('', Response::HTTP_NOT_MODIFIED);
+        }
+
+        $response = new StreamedResponse(static function () use ($imageData): void {
+            echo $imageData;
+        });
+        $response->headers->set('Content-Type', 'image/jpeg');
+        $response->headers->set('Content-Length', (string) strlen($imageData));
+        $response->headers->set('Cache-Control', 'public, max-age=86400');
+        $response->headers->set('ETag', $etag);
+
+        return $response;
     }
 }
