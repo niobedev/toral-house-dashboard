@@ -69,7 +69,10 @@ export function initRecentVisitors(containerId) {
         fetch(`/api/recent-visitors?period=${period}`)
             .then(r => r.json())
             .then(data => { currentData = data; applyFilter(); })
-            .catch(() => { listWrap.innerHTML = '<p class="text-red-400 text-sm">Failed to load.</p>'; });
+            .catch(error => {
+                console.error('Failed to load recent visitors:', error);
+                listWrap.innerHTML = '<p class="text-red-400 text-sm">Failed to load.</p>';
+            });
     }
 
     function applyFilter() {
