@@ -109,12 +109,9 @@ ghcr.io/niobedev/toral-house-dashboard:latest
 APP_SECRET=<openssl rand -hex 32>
 
 DATABASE_URL=mysql://app:strongpassword@mysql:3306/house_visits?serverVersion=8.0&charset=utf8mb4
-MYSQL_ROOT_PASSWORD=<strong>
-MYSQL_PASSWORD=strongpassword
 
 GOOGLE_SHEET_ID=your_spreadsheet_id_here
 GOOGLE_SHEET_RANGE=AD!A2:E
-GOOGLE_SA_KEY_PATH=/opt/secrets/google-sa-key.json
 ```
 
 ### 2 — Deploy
