@@ -142,7 +142,7 @@ export function initRecentVisitors(containerId) {
 
     function formatTime(ts) {
         if (!ts) return '—';
-        const d = new Date(ts.replace(' ', 'T'));
+        const d = new Date(ts * 1000);
         return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
 

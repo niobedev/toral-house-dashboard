@@ -38,7 +38,7 @@ function updateSyncStatus(onNewSync) {
         .then(data => {
             const el = document.getElementById('sync-status');
             if (!el || !data.synced_at) return;
-            const d = new Date(data.synced_at);
+            const d = new Date(data.synced_at * 1000);
             el.textContent = `Last synced: ${d.toLocaleString()} · ${Number(data.rows_synced).toLocaleString()} total events`;
 
             if (lastSyncedAt !== null && data.synced_at !== lastSyncedAt) {

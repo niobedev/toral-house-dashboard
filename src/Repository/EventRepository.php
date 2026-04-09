@@ -58,7 +58,7 @@ class EventRepository extends ServiceEntityRepository
     /**
      * Live visitors: avatars whose most recent event is a 'join' (no subsequent quit).
      *
-     * @return array<array{avatar_key:string, display_name:string, joined_at:string}>
+     * @return array<array{avatar_key:string, display_name:string, joined_at:int}>
      */
     public function getLiveVisitors(): array
     {
@@ -69,7 +69,7 @@ class EventRepository extends ServiceEntityRepository
                     ROW_NUMBER() OVER (PARTITION BY avatar_key ORDER BY event_ts DESC) AS rn
                 FROM event
             )
-            SELECT avatar_key, display_name, event_ts AS joined_at
+            SELECT avatar_key, display_name, UNIX_TIMESTAMP(event_ts) AS joined_at
             FROM latest
             WHERE rn = 1 AND action = 'join'
             ORDER BY event_ts DESC
@@ -84,7 +84,7 @@ class EventRepository extends ServiceEntityRepository
      * Visitors in a given period with visit count and total time.
      *
      * @param string $period today|yesterday|week|month|year|all
-     * @return array<array{avatar_key:string,display_name:string,visit_count:int,total_minutes:float,last_join:string}>
+     * @return array<array{avatar_key:string,display_name:string,visit_count:int,total_minutes:float,last_join:int}>
      */
     public function getRecentVisitors(string $period = 'today'): array
     {
@@ -122,7 +122,7 @@ class EventRepository extends ServiceEntityRepository
                     COUNT(CASE WHEN action = 'join' AND next_action = 'quit' THEN 1 END) AS visit_count,
                     SUM(CASE WHEN action = 'join' AND next_action = 'quit'
                         THEN TIMESTAMPDIFF(SECOND, event_ts, next_ts) END) / 60.0 AS total_minutes,
-                    MAX(CASE WHEN action = 'join' THEN event_ts END) AS last_join
+                    MAX(CASE WHEN action = 'join' THEN UNIX_TIMESTAMP(event_ts) END) AS last_join
                 FROM paired
                 GROUP BY avatar_key
             )
@@ -316,7 +316,7 @@ class EventRepository extends ServiceEntityRepository
     /**
      * Per-avatar visit history (recent completed visits).
      *
-     * @return array<array{joined_at:string, quit_at:string, duration_minutes:float}>
+     * @return array<array{joined_at:int, quit_at:int, duration_minutes:float}>
      */
     public function getAvatarVisitHistory(string $avatarKey, int $limit = 50): array
     {
@@ -330,8 +330,8 @@ class EventRepository extends ServiceEntityRepository
                 WHERE avatar_key = :key
             )
             SELECT
-                event_ts AS joined_at,
-                next_ts AS quit_at,
+                UNIX_TIMESTAMP(event_ts) AS joined_at,
+                UNIX_TIMESTAMP(next_ts)  AS quit_at,
                 TIMESTAMPDIFF(SECOND, event_ts, next_ts) / 60.0 AS duration_minutes
             FROM paired
             WHERE action = 'join' AND next_action = 'quit'

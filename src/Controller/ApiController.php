@@ -112,7 +112,7 @@ class ApiController extends AbstractController
         return $this->json([
             'bio_html'  => $profile['bioHtml'],
             'image_url' => $profile['imageUrl'],
-            'synced_at' => $profile['syncedAt']->format('Y-m-d\TH:i:s\Z'),
+            'synced_at' => $profile['syncedAt']->getTimestamp(),
         ]);
     }
 
@@ -137,7 +137,7 @@ class ApiController extends AbstractController
         $state = $this->syncStateRepository->findOneBy([]);
         return $this->json([
             'last_row' => $state?->getLastRow() ?? 1,
-            'synced_at' => $state?->getSyncedAt()?->format('c'),
+            'synced_at' => $state?->getSyncedAt()?->getTimestamp(),
             'rows_synced' => $state?->getRowsSynced() ?? 0,
         ]);
     }
@@ -152,7 +152,7 @@ class ApiController extends AbstractController
             'id'          => $r->getId(),
             'avatar_key'  => $r->getAvatarKey(),
             'content'     => $r->getContent(),
-            'reminder_at' => $r->getReminderAt()->format('c'),
+            'reminder_at' => $r->getReminderAt()->getTimestamp(),
             'is_overdue'  => $r->getReminderAt() < $now,
             'author'      => $r->getAuthor()->getUsername(),
         ], $reminders));

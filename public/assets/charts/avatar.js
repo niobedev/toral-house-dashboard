@@ -24,7 +24,7 @@ export function renderAvatarHourly(elementId, data) {
 export function renderAvatarHistory(elementId, data) {
     const chart = echarts.init(document.getElementById(elementId), 'dark', { backgroundColor: 'transparent' });
 
-    const dates = data.map(d => d.joined_at.split('T')[0] || d.joined_at.split(' ')[0]);
+    const dates = data.map(d => new Date(d.joined_at * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
     const durations = data.map(d => parseFloat(d.duration_minutes).toFixed(1));
 
     chart.setOption({

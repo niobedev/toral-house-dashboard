@@ -25,7 +25,7 @@ export function initLiveVisitors(containerId) {
         fetch('/api/live-visitors')
             .then(r => r.json())
             .then(data => {
-                visitors = new Map(data.map(v => [v.avatar_key, { display_name: v.display_name, joined_at: new Date(v.joined_at.replace(' ', 'T')) }]));
+                visitors = new Map(data.map(v => [v.avatar_key, { display_name: v.display_name, joined_at: new Date(v.joined_at * 1000) }]));
                 renderList();
                 document.getElementById('live-count').textContent = `${visitors.size} online`;
             })
