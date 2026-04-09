@@ -1,0 +1,10 @@
+.git
+.gitignore
+var/
+vendor/
+secrets/
+.env.local
+.env.*.local
+*.md
+docker/php/Dockerfile.dev
+node_modules/

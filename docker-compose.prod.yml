@@ -2,23 +2,60 @@ services:
   php:
     build:
       context: .
-      dockerfile: docker/php/Dockerfile
+      dockerfile: docker/php/Dockerfile.prod
+    restart: unless-stopped
     environment:
       APP_ENV: prod
-    restart: unless-stopped
-    volumes: []
+      APP_SECRET: ${APP_SECRET}
+      DATABASE_URL: ${DATABASE_URL}
+      GOOGLE_SHEET_ID: ${GOOGLE_SHEET_ID}
+      GOOGLE_SHEET_RANGE: ${GOOGLE_SHEET_RANGE}
+    volumes:
+      - ${GOOGLE_SA_KEY_PATH}:/opt/secrets/google-sa-key.json:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app
 
-  nginx:
+  caddy:
+    image: caddy:2-alpine
     restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - php
+    networks:
+      - app
 
   mysql:
+    image: mysql:8.0
     restart: unless-stopped
-
-  cron:
-    build:
-      context: .
-      dockerfile: docker/php/Dockerfile.cron
     environment:
-      APP_ENV: prod
-    restart: unless-stopped
-    volumes: []
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-house_visits}
+      MYSQL_USER: ${MYSQL_USER:-app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app
+
+volumes:
+  mysql_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  app:
