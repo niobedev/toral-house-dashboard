@@ -119,12 +119,9 @@ docker network create proxy
 APP_SECRET=<openssl rand -hex 32>
 
 DATABASE_URL=mysql://app:strongpassword@mysql:3306/house_visits?serverVersion=8.0&charset=utf8mb4
-MYSQL_ROOT_PASSWORD=<strong password>
-MYSQL_PASSWORD=strongpassword
 
 GOOGLE_SHEET_ID=your_spreadsheet_id_here
 GOOGLE_SHEET_RANGE=AD!A2:E
-GOOGLE_SA_KEY_PATH=/absolute/path/to/google-sa-key.json
 ```
 
 ### 3 — Configure your Caddy instance
@@ -210,24 +207,21 @@ External Caddy (proxy network)
 
 ## 🔧 Useful Commands
 
-```bash
-# Run a manual sync (dev)
-docker compose exec php php bin/console app:sync-sheet
+A `Makefile` is included for common tasks. Run `make` to see all targets.
 
-# Full re-sync from scratch (wipes existing events)
-docker compose exec php php bin/console app:sync-sheet --full
-
-# Follow live logs — sync output, Caddy access log, php-fpm all here
-docker compose exec php php bin/console app:sync-sheet   # dev
-docker compose logs toral-house-app -f                   # prod
-
-# Open a shell inside the container
-docker compose exec php sh          # dev
-docker compose exec app sh          # prod
-```
-
----
-
-## 📄 License
-
-MIT
+| Command | Description |
+|---|---|
+| `make up` | Start the dev stack |
+| `make down` | Stop and remove containers |
+| `make logs` | Follow all container logs |
+| `make logs-php` | Follow php logs only (sync output here) |
+| `make shell` | Open a shell in the php container |
+| `make sync` | Run an incremental sync from Google Sheets |
+| `make sync-full` | Wipe all events and re-import from scratch |
+| `make migrate` | Run pending database migrations |
+| `make user name=admin pass=secret` | Create a login user |
+| `make build` | Rebuild the dev image |
+| `make cache-clear` | Clear the Symfony cache |
+| `make composer-require pkg=vendor/name` | Add a Composer package |
+| `make prod-build` | Build the production image locally |
+| `make prod-push` | Push the production image to GHCR |
