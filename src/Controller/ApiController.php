@@ -36,7 +36,7 @@ class ApiController extends AbstractController
     #[Route('/recent-visitors', name: 'recent_visitors', methods: ['GET'])]
     public function recentVisitors(#[MapQueryParameter] string $period = 'today'): JsonResponse
     {
-        $allowed = ['today', 'yesterday', '3days', 'week', 'month', 'year', 'lastyear', 'all'];
+        $allowed = ['today', 'yesterday', 'week', 'month', 'year', 'all'];
         if (!in_array($period, $allowed, true)) {
             $period = 'today';
         }

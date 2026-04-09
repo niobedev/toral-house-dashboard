@@ -5,11 +5,9 @@ export function initRecentVisitors(containerId) {
     const periods = [
         { key: 'today',     label: 'Today' },
         { key: 'yesterday', label: 'Yesterday' },
-        { key: '3days',     label: 'Last 3 days' },
         { key: 'week',      label: 'Last week' },
         { key: 'month',     label: 'Last month' },
         { key: 'year',      label: 'This year' },
-        { key: 'lastyear',  label: 'Previous year' },
         { key: 'all',       label: 'All time' },
     ];
 

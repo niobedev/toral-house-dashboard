@@ -83,18 +83,16 @@ class EventRepository extends ServiceEntityRepository
     /**
      * Visitors in a given period with visit count and total time.
      *
-     * @param string $period today|yesterday|3days|week|month|year|lastyear|all
+     * @param string $period today|yesterday|week|month|year|all
      * @return array<array{avatar_key:string,display_name:string,visit_count:int,total_minutes:float,last_join:string}>
      */
     public function getRecentVisitors(string $period = 'today'): array
     {
         [$from, $until] = match($period) {
             'yesterday' => ['CURDATE() - INTERVAL 1 DAY',                  'CURDATE()'],
-            '3days'     => ['CURDATE() - INTERVAL 2 DAY',                  'CURDATE() + INTERVAL 1 DAY'],
             'week'      => ['CURDATE() - INTERVAL 6 DAY',                  'CURDATE() + INTERVAL 1 DAY'],
             'month'     => ['CURDATE() - INTERVAL 29 DAY',                 'CURDATE() + INTERVAL 1 DAY'],
             'year'      => ['DATE(CONCAT(YEAR(CURDATE()),\'-01-01\'))',     'CURDATE() + INTERVAL 1 DAY'],
-            'lastyear'  => ['DATE(CONCAT(YEAR(CURDATE())-1,\'-01-01\'))',   'DATE(CONCAT(YEAR(CURDATE()),\'-01-01\'))'],
             'all'       => [null,                                           null],
             default     => ['CURDATE()',                                    'CURDATE() + INTERVAL 1 DAY'],
         };
