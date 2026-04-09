@@ -24,7 +24,10 @@ const CHARTS = [
 function loadAllCharts() {
     CHARTS.forEach(([url, renderer, elementId]) => {
         fetch(url)
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
             .then(data => renderer(elementId, data))
             .catch(err => console.error(`Failed to load ${url}:`, err));
     });
@@ -34,7 +37,10 @@ let lastSyncedAt = null;
 
 function updateSyncStatus(onNewSync) {
     fetch('/api/sync-status')
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+        })
         .then(data => {
             const el = document.getElementById('sync-status');
             if (!el || !data.synced_at) return;
@@ -46,7 +52,7 @@ function updateSyncStatus(onNewSync) {
             }
             lastSyncedAt = data.synced_at;
         })
-        .catch(() => {});
+        .catch(err => console.error('Failed to update sync status:', err));
 }
 
 // Init widgets

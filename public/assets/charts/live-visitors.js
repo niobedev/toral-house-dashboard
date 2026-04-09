@@ -23,13 +23,16 @@ export function initLiveVisitors(containerId) {
 
     function fetchAndUpdate() {
         fetch('/api/live-visitors')
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
             .then(data => {
                 visitors = new Map(data.map(v => [v.avatar_key, { display_name: v.display_name, joined_at: new Date(v.joined_at * 1000) }]));
                 renderList();
                 document.getElementById('live-count').textContent = `${visitors.size} online`;
             })
-            .catch(() => {});
+            .catch(err => console.error('Failed to fetch live visitors:', err));
     }
 
     function renderList() {

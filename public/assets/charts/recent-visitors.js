@@ -67,11 +67,23 @@ export function initRecentVisitors(containerId) {
         listWrap.innerHTML = '<p class="text-gray-500 text-sm py-2">Loading…</p>';
         summary.textContent = '';
         fetch(`/api/recent-visitors?period=${period}`)
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) {
+                    throw new Error(`HTTP error! status: ${r.status}`);
+                }
+                return r.text().then(text => {
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        console.error('Invalid JSON response:', text);
+                        throw new Error('Failed to parse response as JSON');
+                    }
+                });
+            })
             .then(data => { currentData = data; applyFilter(); })
             .catch(error => {
                 console.error('Failed to load recent visitors:', error);
-                listWrap.innerHTML = '<p class="text-red-400 text-sm">Failed to load.</p>';
+                listWrap.innerHTML = `<p class="text-red-400 text-sm">Failed to load: ${error.message}</p>`;
             });
     }
 
