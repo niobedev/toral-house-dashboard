@@ -104,6 +104,49 @@ docker compose exec php php bin/console app:sync-sheet
 
 ---
 
+## 🔐 Authentication
+
+### Built-in Login
+
+By default the app uses its own username/password login page. Create users with:
+
+```bash
+make user name=admin pass=your-password
+```
+
+### Trusted-Header SSO (Authelia, Authentik, oauth2-proxy, etc.)
+
+If you run a reverse proxy that authenticates users and injects a `Remote-User` header, the app can delegate authentication to it entirely.
+
+Set the environment variable:
+
+```env
+AUTHELIA_ENABLED=true
+```
+
+With this set, the app trusts the `Remote-User` header and logs in whoever the proxy says is authenticated. The built-in login page is bypassed.
+
+**Requirements:**
+
+- The user named in `Remote-User` must already exist in the app's database (`make user name=<username>`). Unknown users get a `403`.
+- Your reverse proxy must strip any client-supplied `Remote-User` header before the auth step, then inject the trusted value after.
+
+**Caddy + Authelia example:**
+
+```caddyfile
+your-app.example.com {
+    forward_auth authelia:9091 {
+        uri /api/authz/forward-auth
+        copy_headers Remote-User Remote-Name Remote-Groups Remote-Email
+    }
+    reverse_proxy http://app:80
+}
+```
+
+> **Caddy note:** `request_header` directives execute *after* `forward_auth` in Caddy's handler chain. Do not place `request_header -Remote-User` in the same block as `forward_auth` — it will strip the header that `forward_auth` just injected. Rely on `copy_headers` overwriting the header instead.
+
+Other proxies (Nginx, Traefik, oauth2-proxy) work the same way — consult their docs for injecting `Remote-User`.
+
 ## 🏭 Production Deployment
 
 The production image is a **single self-contained container** — php-fpm, Caddy (static files + FastCGI), and the sync scheduler all run together under supervisord. No volume sharing with external services required.
